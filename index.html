@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JS Syntax Validator (Automata Theory)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .editor {
+      counter-reset: line;
+    }
+    .editor div {
+      counter-increment: line;
+    }
+    .editor div:before {
+      content: counter(line);
+      display: inline-block;
+      width: 2em;
+      padding-right: 1em;
+      margin-right: 1em;
+      color: #6b7280;
+      text-align: right;
+      border-right: 1px solid #e5e7eb;
+    }
+    .error-line {
+      background-color: #fee2e2;
+      position: relative;
+    }
+    .error-line:after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-bottom: 2px solid #ef4444;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">JavaScript Syntax Validator</h1>
+    <p class="text-gray-600 mb-6">Using Automata Theory (Finite State Machines & Pushdown Automata)</p>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div>
+        <div class="bg-white rounded-md shadow-md overflow-hidden">
+          <div class="bg-gray-800 text-white px-4 py-2">
+            <h2 class="font-mono font-bold">Editor</h2>
+          </div>
+          <div class="p-4">
+            <div id="editor" class="editor font-mono text-sm h-96 overflow-auto bg-gray-900 text-gray-100 p-4 rounded-md" contenteditable="true"></div>
+            <button id="validate-btn" class="mt-4 bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+              Validate Syntax
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div>
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+          <div class="bg-gray-800 text-white px-4 py-2">
+            <h2 class="font-mono font-bold">Validation Results</h2>
+          </div>
+          <div class="p-4">
+            <div id="results" class="space-y-2">
+              <p class="text-gray-500">Validation results will appear here...</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-6 bg-white rounded-lg shadow-md overflow-hidden">
+          <div class="bg-gray-800 text-white px-4 py-2">
+            <h2 class="font-mono font-bold">Token Stream</h2>
+          </div>
+          <div class="p-4">
+            <div id="tokens" class="font-mono text-sm overflow-auto max-h-48">
+              <p class="text-gray-500">Token stream will appear here...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="lexer.js"></script>
+  <script src="parser.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const editor = document.getElementById('editor');
+      const validateBtn = document.getElementById('validate-btn');
+      const resultsDiv = document.getElementById('results');
+      const tokensDiv = document.getElementById('tokens');
+      
+      // Sample code
+      editor.textContent = `function test() {
+  if (x == 5  // Missing ')', unbalanced brace
+}`;
+
+      validateBtn.addEventListener('click', () => {
+        const code = editor.textContent;
+        
+        // Clear previous highlights
+        document.querySelectorAll('.error-line').forEach(el => {
+          el.classList.remove('error-line');
+        });
+        
+        // Lexical analysis
+        const lexer = new Lexer();
+        const tokens = lexer.tokenize(code);
+        
+        // Display tokens
+        tokensDiv.innerHTML = tokens.map(token => 
+          `<div class="${token.valid ? '' : 'text-red-500'}">
+            ${token.type}: ${token.value.replace(/\n/g, '\\n')} 
+            (L${token.line}:C${token.column})
+            ${!token.valid ? ` - ERROR: ${token.error}` : ''}
+          </div>`
+        ).join('');
+        
+        // Syntax analysis
+        const parser = new Parser();
+        const errors = parser.parse(tokens);
+        
+        // Display errors
+        if (errors.length === 0) {
+          resultsDiv.innerHTML = '<p class="text-green-600">✓ No syntax errors found</p>';
+        } else {
+          resultsDiv.innerHTML = errors.map(error => 
+            `<div class="text-red-600 border-l-4 border-red-500 pl-3 py-1">
+              <strong>${error.type}:</strong> ${error.message} (L${error.line}:C${error.column})
+            </div>`
+          ).join('');
+          
+          // Highlight error lines in editor
+          const lines = editor.querySelectorAll('div');
+          errors.forEach(error => {
+            if (lines[error.line - 1]) {
+              lines[error.line - 1].classList.add('error-line');
+            }
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
